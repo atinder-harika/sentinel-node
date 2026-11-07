@@ -1,53 +1,82 @@
-# Sentinal-Node
+# Sentinel Node
 
-Sentinal-Node is a hackathon-built tactical incident intelligence platform that fuses a modern web dashboard with tethered edge hardware nodes.
+A hackathon prototype that turns ordinary cameras into an emergency network. When it spots a threat, it logs the event and speaks evacuation instructions through the nearest node.
 
-The project is designed around fast operator response loops: edge devices collect and stream field signals, the Next.js backend orchestrates AI processing, and the UI presents live incident context for dispatch and decision support.
+[![Watch the demo](https://img.youtube.com/vi/GDGI76j2z4o/hqdefault.jpg)](https://www.youtube.com/watch?v=GDGI76j2z4o)
 
-## Core Highlights
+[Watch the demo on YouTube](https://www.youtube.com/watch?v=GDGI76j2z4o)
 
-- Modern UI/UX: A high-clarity tactical dashboard built with Next.js App Router and reusable component primitives for live operational visibility.
-- Decoupled application architecture: Frontend experience and backend API routes live in one Next.js codebase, while maintaining clear boundaries between presentation, orchestration, and integrations.
-- Tethered hardware stack: Dedicated edge node scripts live in `Hardware/`, enabling on-site sensing and event forwarding into the core application loop.
+## Why
 
-## Repository Layout
+In an emergency, people need to know where to go right away, and responders need to know what's happening. Most buildings already have cameras, but those cameras only record. Sentinel Node explores what happens when they can react.
 
-- `Dashboard/`: Unified Next.js application.
-- `Dashboard/app/`: App Router pages and backend route handlers under `Dashboard/app/api/`.
-- `Dashboard/components/`: Shared UI building blocks and feature components.
-- `Dashboard/hooks/`: Client-side orchestration hooks used to coordinate crisis workflows.
-- `Dashboard/store/`: Global state management.
-- `Dashboard/lib/`: Shared utilities and integration helpers.
-- `Hardware/`: Edge node runtime scripts and device-side logic.
+## How it works
 
-## Architecture Overview
+```mermaid
+flowchart LR
+    N1[Node 1: camera] -->|frame every 3 seconds| API[Next.js crisis loop]
+    API --> G[Gemini: threat check]
+    G --> S[(Snowflake: event log)]
+    API --> R[Gemini: evacuation message]
+    R --> E[ElevenLabs: voice audio]
+    E --> S
+    N2[Node 2: speaker] -->|polls for alerts| API
+    API --> D[Operator dashboard]
+```
 
-Sentinal-Node intentionally separates responsibilities into three coordinated layers:
+1. Each node captures a webcam frame and sends it to the server.
+2. Gemini checks the frame for a gun, fire or earthquake.
+3. A detected threat is logged in Snowflake.
+4. Gemini writes an evacuation message based on the threat location and a list of safe zones.
+5. ElevenLabs turns the message into speech, and the target node plays it aloud.
+6. Operators follow the incident on a live dashboard.
 
-1. Presentation Layer (Dashboard UI)
-	- Tactical pages and modules render live incident context.
-	- Components focus on operator-facing workflows and situational awareness.
+## The hardware pivot
 
-2. Orchestration Layer (Next.js API)
-	- App Router API endpoints handle AI-facing backend workflows.
-	- Integrations include vision analysis, language model interactions, audio handling, and logging/dispatch routes.
+The original plan was a Raspberry Pi network with sensors. During the hackathon, networking problems and missing cables got in the way, so we dropped the Pi and ran the nodes on two laptops. The node script is a plain Python program, so it only needs a webcam and speakers.
 
-3. Edge Layer (Hardware Nodes)
-	- Device scripts run at the edge to capture or relay mission-critical signals.
-	- Hardware remains tethered to the software platform through lightweight exchange contracts.
+## Tech stack
 
-## Development Intent
+- **Dashboard and API:** Next.js, React, TypeScript, Tailwind CSS, Zustand, Auth0
+- **AI:** Google Gemini, Google Cloud Vision, ElevenLabs
+- **Data:** Snowflake
+- **Edge nodes:** Python, OpenCV, pygame
+- **Deployment:** Docker on Railway
 
-This codebase was built to prove an end-to-end crisis loop in a hackathon setting, while preserving enough structure for post-hackathon hardening:
+## Run it locally
 
-- Extendable API-first backend patterns.
-- Reusable UI modules for rapid iteration.
-- Clear hardware/software contract boundaries.
+You need Node.js with pnpm, Python, and accounts for the services listed in `Dashboard/.env.example`.
 
-## Tech Stack
+**Dashboard**
 
-- Next.js (App Router)
-- React + TypeScript
-- Component-driven UI architecture
-- Zustand-based state management
-- Edge node scripts for hardware integration
+```bash
+cd Dashboard
+pnpm install
+pnpm dev
+```
+
+Copy `.env.example` to `.env.local` and fill in your keys first.
+
+**Edge node**
+
+```bash
+cd Hardware
+pip install -r requirements.txt
+python node.py
+```
+
+Set `NODE_ID` (for example `NODE-001`) and `SENTINEL_SERVER_URL` before you start it. See the [hardware guide](Hardware/README.md) for details.
+
+## Team
+
+Built by Atinder Harika and Chahatbir Singh at a hackathon in April 2026. Chahatbir worked on the frontend. Much of the code was written with AI coding assistants, directed by the team.
+
+## Limitations and what I'd do next
+
+- This is a prototype, and it isn't safe for real emergencies.
+- It's slow and resource-limited: nodes send a frame every 3 seconds, and each check waits on cloud AI calls.
+- The demo used two laptops, not a real camera network.
+- Evacuation messages come from a list of safe zones. Routing from a real floor plan is the biggest next step.
+- It doesn't contact emergency services yet.
+- False alarms and missed threats haven't been measured.
+- The hackathon deployment is offline, so the video is the best way to see it.
